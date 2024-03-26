@@ -65,6 +65,7 @@ EXIR_REQUIREMENTS=(
 
 # pip packages needed for development.
 DEVEL_REQUIREMENTS=(
+  cmake  # For building binary targets.
   setuptools  # For building the pip package.
   tomli  # Imported by extract_sources.py when using python < 3.11.
   wheel  # For building the pip package archive.
@@ -94,13 +95,9 @@ pip install --extra-index-url "${TORCH_NIGHTLY_URL}" \
     "${REQUIREMENTS_TO_INSTALL[@]}"
 
 #
-# Install executorch pip package.
+# Install executorch pip package. This also makes `flatc` available on the path.
 #
 
-EXECUTORCH_BUILD_PYBIND="$EXECUTORCH_BUILD_PYBIND" \
-CMAKE_ARGS="$CMAKE_ARGS" \
-CMAKE_BUILD_PARALLEL_LEVEL=9 \
-pip install . --no-build-isolation -v
-
-# Install flatc dependency
-bash build/install_flatc.sh
+EXECUTORCH_BUILD_PYBIND="${EXECUTORCH_BUILD_PYBIND}" \
+    CMAKE_ARGS="${CMAKE_ARGS}" \
+    pip install . --no-build-isolation -v
