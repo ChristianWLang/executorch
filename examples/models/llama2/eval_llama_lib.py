@@ -24,6 +24,46 @@ from .export_llama_lib import (
     build_args_parser as _build_args_parser,
 )
 
+def setup_cache_padded_seq_input_pos_max_seq_length_for_prefill(
+    model: torch.nn.Module,
+    prompt: torch.Tensor,
+    max_new_tokens: int,
+    max_seq_length: Optional[int] = None,
+    block_size: int = 2048,
+):
+    """
+    Sets up model cache and does some bookkeeping calculations for prompt, input_pos and max_seq_length
+    that are needed for prefill or model_forward
+
+    Args:
+        model (torch.nn.Module): The model whose cache gets set up
+        prompt (torch.Tensor): Tensor of shape (T) with indices of the prompt sequence.
+        max_new_tokens (int): The desired maximum number of new tokens that can be generated.
+        max_seq_length (Optional[int], optional): The maximum sequence length allowed.
+
+    Returns:
+        seq (torch.Tensor): prompt but padded with zeros to size max_seq_length
+        input_pos (torch.Tensor): tensor of integers in increasing order
+        max_seq_length (int): The maximum sequence length allowed, updated based on other numbers
+    """
+    T = prompt.size(0)
+    T_new = T + max_new_tokens
+    if max_seq_length is None:
+        max_seq_length = min(T_new, block_size)
+
+    device, dtype = prompt.device, prompt.dtype
+    # create an empty tensor of the expected final shape and fill in the current tokens
+    empty = torch.empty(T_new, dtype=dtype, device=device)
+    empty[:T] = prompt
+    seq = empty
+    input_pos = torch.arange(0, T, device=device)
+
+    # no caches in executorch llama2 7b model?
+    # with torch.device(device):
+    #     model.setup_caches(max_batch_size=1, max_seq_length=max_seq_length)
+
+    return seq, input_pos, max_seq_length
+
 
 class GPTFastEvalWrapper(eval_wrapper):
     """
@@ -77,6 +117,23 @@ class GPTFastEvalWrapper(eval_wrapper):
         decoded = self._tokenizer.decode(tokens)
         return decoded
 
+    # def _model_call(self, inps):
+    #     # TODO: make batches work
+    #     inps = inps.squeeze(0)
+
+    #     max_new_tokens = 1
+    #     seq, input_pos, max_seq_length = (
+    #         setup_cache_padded_seq_input_pos_max_seq_length_for_prefill(
+    #             self._model,
+    #             inps,
+    #             max_new_tokens,
+    #             self.max_length,
+    #         )
+    #     )
+    #     x = seq.index_select(0, input_pos).view(1, -1)
+    #     logits = self._model(x, input_pos)
+    #     return logits
+
     def _model_call(self, inps):
         return self._model(inps)
 
@@ -98,7 +155,7 @@ def eval(
         task (str): The name of the evaluation task to perform.
         limit (Optional[int]): The maximum number of samples to evaluate (None for all available).
 
-    Returns:
+    Returns:p
         eval_results (dict): A dictionary of evaluation results for the specified task(s).
     """
 

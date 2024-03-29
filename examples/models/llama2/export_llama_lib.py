@@ -209,7 +209,7 @@ def quantize(
     calibration_tasks: Optional[list] = None,
     calibration_limit: int = 5,
     calibration_seq_length: int = 100,
-    pad_calibration_inputs: bool = False,
+    pad_calibration_inputs: bool = True,
     percdamp: float = 0.01,
     blocksize: int = 128,
     tokenizer_path: Optional[Path] = None,
@@ -324,19 +324,19 @@ def build_args_parser() -> argparse.ArgumentParser:
         "--calibration_tasks",
         nargs="+",
         type=str,
-        default=[],
+        default=None,
         help="Tasks for GPTQ calibration",
     )
     parser.add_argument(
         "--calibration_limit",
         type=int,
-        default=5,
+        default=100,
         help="number of samples used for calibration",
     )
     parser.add_argument(
         "--calibration_seq_length",
         type=int,
-        default=2048,
+        default=1000,
         help="Sequence length for GPTQ calibration",
     )
     parser.add_argument(
@@ -390,7 +390,7 @@ def build_args_parser() -> argparse.ArgumentParser:
         help="Use cProfile to profile model export. Results saved to profile_path as a html file.",
     )
     parser.add_argument(
-        "-G", "--group_size", default=None, help="group_size for weight quantization"
+        "-G", "--group_size", type=int, default=None, help="group_size for weight quantization"
     )
 
     parser.add_argument(
